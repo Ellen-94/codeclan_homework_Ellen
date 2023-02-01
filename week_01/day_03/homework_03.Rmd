@@ -1,0 +1,86 @@
+---
+title: "Homework 3"
+output: html_notebook
+---
+
+```{r}
+
+movies_data <- read.csv("tmdb_5000_movies.csv")
+movies_data
+View(movies_data)
+
+```
+
+## Question 1
+
+In order to clean the data,  I could remove meta-data so that the rows look neater. I could also change some of the variable names so that they are more understandable. 
+
+## Question 2
+
+```{r}
+movies_selected <- movies_data %>% 
+  select("title","runtime","budget")
+
+movies_selected
+  
+```
+## Question 3
+
+```{r}
+
+movies_selected %>% 
+  is.na()
+  
+
+```
+
+## Question 4
+
+
+```{r}
+movies_runtime <- movies_selected %>%
+  mutate(runtime = na_if(runtime, 0))
+
+sum(is.na(movies_runtime))
+
+
+```
+
+
+## Question 5
+
+```{r}
+
+movies_imputed <- movies_runtime %>% 
+  mutate(runtime = 
+  coalesce(runtime, 
+  median(runtime, na.rm = TRUE)))
+
+sum(is.na(movies_imputed))
+```
+
+## Question 6 
+
+```{r}
+movies_imputed %>% 
+  slice_max(runtime, n = 10, with_ties = FALSE)
+
+movies_imputed %>% 
+  slice_min(runtime,n = 10, with_ties = FALSE)
+```
+## Question 7 
+
+```{r}
+
+movies_imputed <- movies_imputed %>% 
+  mutate(budget = if_else(budget < 100,
+                          median(budget, na.rm = TRUE),
+                          budget))
+
+
+movies_imputed
+```
+
+
+
+
