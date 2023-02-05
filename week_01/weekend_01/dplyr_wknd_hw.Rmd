@@ -1,0 +1,181 @@
+---
+title: "`dplyr` Weekend Homework"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    df_print: paged
+    css: ../../../styles.css
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE)
+```
+<br>
+
+
+
+As this is your first weekend homework, here are some tips: 
+
+* Try to schedule some time in your weekend to work on the homework so it's not suddenly Monday morning and you haven't gotten started yet (it happens).
+* Remember that the weekend homework is for your learning, so try to use it as an opportunity to apply and consolidate everything you've learned in the week.
+* Also use it as an opportunity to spend a bit more time making your code readable and reproducible, by practising commenting and writing some text around your steps and findings. You will thank yourself later! 
+  * This will be especially useful for this specific weekend homework as it's very open-ended and you will eventually forget your own thought process
+* A bit obvious, but don't spend your entire weekend working on the homework! Remember to spend time doing things you enjoy and rest up ahead of the following week.
+
+The data for this weekend homework is scraped from Goodreads (a website all about books) and made publicly available on Kaggle. You can read more about the data [here](https://www.kaggle.com/jealousleopard/goodreadsbooks).
+
+# MVP
+
+### First steps
+
+Load necessary packages and read in `books.csv`. Investigate dimensions, variables, missing values - you know the drill!
+
+```{r}
+# lnstall and load packages -----------------------------
+# install.packages("lubridate")
+library(lubridate)
+library(tidyverse)
+library(dplyr)
+library(stringr)
+library(skimr)
+
+# lnvestigate data --------------------------------
+books <- read_csv("books.csv")
+View(books)
+dim(books)
+names(books)
+head(books)
+tail(books)
+glimpse(books)
+skim(books)
+is.na(books)
+sum(is.na(books))
+
+books %>% 
+  summarise(across(everything(), ~ sum(is.na(.))))
+
+books %>% 
+  filter(rowSums(is.na(across(everything()))) > 0)
+
+# Clean data - delete missing values ---------------------------------
+
+books_clean <- books %>% 
+  drop_na()
+
+books_clean
+
+dim(books_clean)
+  
+
+```
+
+
+### Up to you
+
+Now it's up to you... For this weekend homework there will be no specific tasks, just you and this dataset! Using everything you've learned this week, try to describe/summarise at least 5 things about this dataset - using R and the tidyverse of course! Feel free to find and use new functions if there is something that the tidyverse doesn't offer, but do try to use this homework to apply what you have learned this week. Be prepared to share one of your findings on Monday!
+
+
+1. What are the books with the 10 best ratings, that also have more than the average number of ratings? 
+
+```{r}
+
+# Calculate the average number of ratings 
+
+average_ratings_count <- books_clean %>% 
+  summarise(average_count = mean(ratings_count, na.rm = TRUE)) %>% 
+  pull()
+
+class(average_ratings_count)
+
+# Select relevant columns, filter for ratings above the mean, and arrange in descending order 
+
+best_book_ratings <- books_clean %>% 
+  select(title, average_rating, ratings_count) %>% 
+  filter(ratings_count >= average_ratings_count) %>% 
+  arrange(desc(average_rating))
+
+# Look at the first 10 books
+
+head(best_book_ratings, 10)
+
+```
+
+2. What 10 authors, with a rating count above the mean, have the best ratings? 
+```{r}
+
+avg_ratings_authors <- books_clean %>% 
+  filter(ratings_count >= average_ratings_count) %>% 
+  group_by(authors) %>% 
+  summarise(avg_auth = mean(average_rating, na.rm = TRUE)) %>% 
+  arrange(desc(avg_auth))
+
+head(avg_ratings_authors, 10)
+
+
+
+```
+
+3. What were the 10 best rated books, with rating count above the mean, between 2005 and 2007? 
+
+```{r}
+
+best_books_05_07 <- books_clean %>% 
+  # create a new column with years using the lubridate library
+  mutate(publication_date = dmy(publication_date)) %>% 
+  mutate(publication_year = year(publication_date), .after = publication_date) %>% 
+  select(title, average_rating, ratings_count, publication_year) %>%
+  filter(ratings_count >= average_ratings_count & publication_year %in% c("2005","2006","2007")) %>% 
+  arrange(desc(average_rating))
+
+head(best_books_05_07,10)
+
+
+
+```
+
+4. What were the five best rated authors, with rating count above the mean, in the year 1994?
+
+```{r}
+
+best_authors_1994 <- books_clean %>% 
+  mutate(publication_date = dmy(publication_date)) %>% 
+  mutate(publication_year = year(publication_date), .after = publication_date) %>% 
+  filter(ratings_count >= average_ratings_count & publication_year == "1994") %>% 
+  group_by(authors) %>% 
+  summarise(avg_auth_94 = mean(average_rating, na.rm = TRUE)) %>% 
+  arrange(desc(avg_auth_94))
+
+head(best_authors_1994, 5)
+
+
+
+```
+
+5. What is the average rating per publisher, only counting books with rating count above the mean? 
+
+```{r}
+
+avg_ratings_publisher <- books_clean %>% 
+  filter(ratings_count >= average_ratings_count) %>% 
+  group_by(publisher) %>% 
+  summarise(avg_publ = mean(average_rating, na.rm = TRUE)) %>% 
+  arrange(desc(avg_publ))
+
+avg_ratings_publisher
+
+
+```
+6. What publishers have the best and worst rated books (books with nr. of ratings above the mean)? 
+
+```{r}
+head(avg_ratings_publisher,1)
+tail(avg_ratings_publisher,1)
+
+```
+
+
+### Remember
+
+Before you submit, go through your weekend homework and make sure your code is following best practices as laid out in the `coding_best_practice` lesson.
