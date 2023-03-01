@@ -91,6 +91,22 @@ ggplot(qb_monthly_sales) +
   theme_minimal() +
   labs(title = "Monthly Revenue and Cost last Year") +
  theme(axis.text = element_text(size = 12), title = element_text(size = 14))
+
+# Answer 
+
+
+qb_monthly_sales %>% 
+  filter(Cashflow != "Kwikbit Unit 1 Sales") %>% 
+  ggplot(aes(x= Date, y = Amount)) +
+  geom_line(aes(col = Cashflow)) +
+  geom_point(aes(col = Cashflow)) +
+  scale_y_continuous(
+    expand = c(0,0),
+    limits = c(0,3000),
+    breaks = seq(0, 3000, 250)
+  )
+  
+  
   
 ```
 
@@ -107,6 +123,15 @@ ggplot(qb_competitors, aes(x=Year, y=Revenue, group = Company, fill = Company)) 
   scale_fill_manual(values =c("Competitor 1" = "#E89FE9", "Competitor 2" = "#50434F", "Competitor 3" = "#F9A472", "Competitor 4" = "#BD7040")) +
   theme_minimal()
   
+
+# Answer 
+
+options(scipen =10)
+qb_competitors %>% 
+  ggplot(aes(x= Year, y = Revenue, fill = Company)) +
+  geom_area() +
+  theme_classic()
+
 
 ```
 
@@ -141,6 +166,14 @@ ggplot(qb_device_data) +
   labs(title = "Number of Steps per Device by Company and Person")+
   theme(axis.text = element_text(size = 12), title = element_text(size = 14))
 
+# Answer 
+
+qb_device_data %>% 
+  mutate(decimal_hour = hours + (mins/60)) %>% 
+  ggplot(aes(x = decimal_hour, y = counts)) + 
+  geom_line(aes(col = device)) + 
+  facet_grid(device ~ id)
+
 ```
 
 
@@ -163,6 +196,19 @@ knitr::include_graphics("palette.JPG")
 
 ```{r, echo=TRUE}
 col_scheme <- c("#E89FE9", "#50434F", "#B6A7B5", "#F9A472", "#BD7040")
+
+# create theme
+
+theme_corporate <-  theme( 
+  text = element_text(size = 12), 
+  title = element_text(size = 14),
+  axis.text = element_text(size = 9), 
+  panel.background = element_rect(fill = "white"), 
+  panel.grid = element_line(colour = "grey80")
+  
+  )
+  
+  
 ```
 <br>
 

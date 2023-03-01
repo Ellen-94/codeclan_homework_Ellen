@@ -1,0 +1,218 @@
+---
+title: "Introduction to `ggplot2` homework"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    df_print: paged
+    css: ../../../styles.css
+    pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE)
+```
+
+# Homework Info
+
+This homework recaps what you learnt in class today. 
+
+You'll be looking at the `backpack` dataset contained within the `CodeClanData` package using tidyverse. You'll need to load the appropriate packages first.In all plots you make, ensure your labels are appropriate 
+
+**You must write down a short summary of what each plot tells you in order to meet MVP.** Being an analyst is not just the ability to write code, you need to be able to interpret the visualisations and translate the relationships found (or not found) into plain language to explain to non-technical decision makers. Getting as much practice of this as you can while on this course is just (if not more!) important than the code!
+
+
+
+# MVP
+
+```{r}
+library(tidyverse)
+library(CodeClanData)
+```
+
+
+**Question 1.**  
+
+Load in the libraries you need, and look at the `backpack` data. Take note of variable names and dimensions.   
+
+```{r}
+
+backpack %>% 
+  names()
+backpack %>% 
+  dim()
+```
+
+
+**Question 2.**
+
+What is the distribution of backpack weights that students are carrying? Choose an appropriate graph to show the distribution. 
+
+The histogram below shows that most backpacks weigh around 10 pounds. It also shows that one student carries an unusually heavy backpack. 
+
+```{r}
+
+ggplot(backpack) + 
+  geom_histogram(aes(x = backpack_weight))+
+  theme_classic()+
+  labs(title = "Distribution of Backpack Weight", x = "Backpack Weight")
+  
+```
+
+
+
+**Question 3.**  
+
+Are there differences in backpack weight between sex?   
+
+The histogram below shows that backpack weight is similarly distributed among men and women, but the average for women appear slightly lower than for men. The graph also shows that it is a man carrying the unusually heavy backpack. 
+
+```{r}
+ggplot(backpack) + 
+  geom_histogram(aes(x = backpack_weight, fill = sex), position = "dodge")+
+  theme_classic()+
+  labs(title = "Distribution of Backpack Weight for each Gender", x = "Backpack Weight")
+
+```
+
+
+**Question 4.**  
+
+What is the relationship between body weight and backpack weight?
+
+The graph below shows that there is a weak correlation between body weight and backpack weight, where heavier students tend to carry heavier backpacks. 
+
+```{r}
+ggplot(backpack) + 
+  geom_point(aes(x = body_weight, y = backpack_weight)) +
+  geom_smooth(aes(x = body_weight, y = backpack_weight), method = "lm", se = FALSE)+
+  theme_classic() +
+  labs(title = "Relationship between Body Weight and Backpack Weight", x = "Body Weight", y = "Backpack Weight")
+
+```
+
+
+**Question 5.**  
+
+Is this relationship different between men and women? Choose an appropriate plot and interpret your findings.  
+
+There is a positive correlation between body weight and backpack weight for both men and women. However, the graph below shows that this relationship is stronger for women than for men. 
+
+```{r}
+
+ggplot(backpack) + 
+  geom_point(aes(x = body_weight, y = backpack_weight, group_by = sex, colour = sex)) +
+  geom_smooth(aes(x = body_weight, y = backpack_weight, group_by = sex, colour = sex), method = "lm", se = FALSE)+
+  theme_classic() +
+  labs(title = "Relationship between Body Weight and Backpack Weight for each Sex", x = "Body Weight", y = "Backpack Weight")
+
+
+```
+
+
+**Question 6.**  
+
+What **proportion** of students report back pain?   
+
+The calculation shows that 32/100 students reported backpain, so 32%. 
+```{r}
+
+backpack %>% 
+  filter(back_problems == 1) %>% 
+  summarise(n())
+
+```
+
+
+**Question 7.**  
+
+Is this proportion different between men and women? 
+
+The proportion of students with backpain is different between men and women. Only 8/100 men have backpain, whereas the proportion for women is 24/100. of all students with backpain, 25% are men and 75% women. 
+
+```{r}
+
+backpack %>% 
+  filter(back_problems == 1, sex == "Male") %>% 
+  summarise(n())
+
+backpack %>% 
+  filter(back_problems == 1, sex == "Female" ) %>% 
+  summarise(n())
+
+
+backpack %>% 
+  filter(back_problems == 1) %>% 
+  group_by(sex) %>% 
+  summarise(n())
+
+```
+
+
+**Question 8.**  
+
+Now you've investigated your data separately, create plots to describe the relationship between backpack weight, body weight, gender and reported backpain.
+
+Try both `backpack_weight` and `body_weight` as well as the `ratio`.   
+
+*Hint: faceting would be useful here*.   
+
+The graphs reveal that there is generally a postive correlation between body weight and backpack weight, but not for men with reported backpain. 
+
+```{r}
+
+ggplot(backpack) + 
+  geom_point(aes(x = body_weight, y = backpack_weight, group_by = sex, colour = sex)) +
+  geom_smooth(aes(x = body_weight, y = backpack_weight, group_by = sex, colour = sex), method = "lm", se = FALSE)+
+  theme_classic() + 
+  facet_wrap(~back_problems)+
+  labs(title = "Relationship between Body Weight and Backpack Weight for each Sex", subtitle = "For students without backpain, and students with reported backpain", x = "Body Weight", y = "Backpack Weight")
+
+
+```
+
+
+# Extensions
+
+<br>
+
+**Question 1.** 
+
+Does reported backpain differ across the year groups? Ignore year 0 in your data.  
+
+The graph shows that there were most bakproblems among 3rd year students. 
+
+```{r}
+
+backpack_new <- 
+  backpack %>% 
+  filter(year != 0, back_problems == 1)
+
+ggplot(backpack_new) + 
+  geom_histogram(aes(x = back_problems, fill = as.factor(year)), position = "dodge") +
+  theme_classic() +
+  labs(title = "Reported Backpain Across Year Groups", x = "Back Problems")
+
+```
+
+
+**Question 2.** 
+
+Is there a difference between how heavy the bags those in different years carry?
+
+The graph shows that those in year 3 carry the heaviest bags. 
+
+```{r}
+ggplot(backpack) + 
+  geom_col(aes(x = as.factor(year), y = backpack_weight)) +
+  theme_classic() +
+  labs(title = "Differences between Year and Backpack Weight", x = "Year", y = "Backpack Weight")
+
+```
+
+
+```
+
+
+
