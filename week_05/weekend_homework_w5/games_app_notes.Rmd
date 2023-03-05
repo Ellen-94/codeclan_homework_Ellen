@@ -1,0 +1,56 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+
+game_sales <- CodeClanData::game_sales
+
+
+# Most Highly Rated Game by Critics in a Given Year 
+
+View(game_sales)
+
+
+# pick a year
+
+unique(game_sales$year_of_release)
+
+# pick a genre 
+
+unique(game_sales$genre)
+
+# What was the most highly rated game for that genre and in that year? 
+
+
+
+```
+
+
+```{r}
+
+game_sales %>% 
+        filter(year_of_release == "2006", genre == "Sports") %>% 
+        mutate(name = as.factor(name)) %>% 
+        drop_na() %>% 
+        distinct(name, critic_score) %>% 
+        ggplot()+
+        geom_col(aes(x = reorder(name,critic_score), y = critic_score, fill = "orange4")) +
+        coord_flip()+
+        theme_classic()+
+        labs(y = "Critic Score", x = "Game")+
+        guides(fill = FALSE)+
+        scale_fill_manual(values = "orange4")
+
+
+```
+
+
+
+
+
+
+
