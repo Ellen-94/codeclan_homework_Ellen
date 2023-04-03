@@ -1,0 +1,91 @@
+---
+title: "Simple Linear Regression Homework"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(modelr)
+library(broom)
+library(ggfortify)
+```
+
+## MVP 
+
+```{r}
+
+project <- read_csv("data/project_management.csv")
+
+```
+```{r}
+project %>% 
+  ggplot(aes(x = estimated_length, y = actual_length))+
+  geom_point()
+```
+The correlation between estimated_length and actual_length is 0.8, so it's a very strong positive correlation (according to Evans(1996)). 
+
+```{r}
+project %>% 
+  summarise(cor(estimated_length, actual_length))
+```
+The R^2 in my model is 0.6475. This means that 64.8% of the variance in actual_length can be explained by the variance in estimated_length. 
+
+
+```{r}
+model <- lm(actual_length ~ estimated_length, data = project)
+
+summary(model)
+```
+
+The p-value is very small, so the relationship is statistically significant. However, looking at the diagnositc plots, the standardised resuduals agaisnt the fitted values show signs of heteroskedacticity. 
+
+
+```{r}
+autoplot(model)
+```
+## Extension 
+
+18 and 5 might be outliers. 
+
+```{r}
+project %>% 
+  ggplot(aes(x = estimated_length, y = actual_length, label = 1:nrow(project)))+
+  geom_point()+
+  geom_text(position = position_nudge(x = 0.4, y = 0.4))
+
+```
+
+Row 5 appears to be quite influential (Cook's distance above 1.5). 18 does not appear to be an influential outlier. 
+
+```{r}
+autoplot(model, which = 4)
+plot(model)
+```
+
+When I take off one of the non-influential outliers (18), the intercept and coefficients are quite different, and the model improves (R^2 is now 0.68). Row 18, therefore, seems quite influential. When I omit the influential outlier (5), the intercept and coefficient change more, but the overall model fit changes less (Multiple R-squared is now 0.6498)
+```{r}
+
+project_non_influential_omitted <- project %>% filter(!...1 == 18)
+
+project_influential_omitted <- project %>% filter(!...1 == 5)
+
+
+model_non_influential_ommitted <- lm(actual_length ~ estimated_length, data = project_non_influential_omitted)
+
+summary(model_non_influential_ommitted)
+
+autoplot(model_non_influental_ommitted)
+
+
+model_influental_ommitted <- lm(actual_length ~ estimated_length, data = project_influential_omitted)
+
+summary(model_influental_ommitted)
+
+autoplot(model_influental_ommitted)
+
+
+
+```
+
+
+
