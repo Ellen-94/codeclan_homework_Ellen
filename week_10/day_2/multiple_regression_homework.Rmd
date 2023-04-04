@@ -1,0 +1,118 @@
+---
+title: "Multiple Regression"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(GGally)
+library(ggfortify)
+library(mosaic)
+```
+## MVP 
+
+1. 
+
+```{r}
+
+housing_prices <- read_csv("data/housing_prices.csv")
+
+```
+2. 
+
+There is a very strong significant correlation between total rooms and total bedrooms. 
+
+```{r}
+
+ggpairs(housing_prices, columns = c("total_rooms", "total_bedrooms"))
+
+```
+3. 
+
+```{r}
+housing_prices_filt <- housing_prices %>% 
+  select(-total_bedrooms)
+
+```
+
+4.1
+
+We can see from the correlation plot that median income is strongly correlated to median house value. Total rooms and latitude are also significantly, positvely (total rooms) and negatively (latitude) correlated with median house value. 
+
+```{r}
+ggpairs(housing_prices_filt)
+
+```
+
+4.2 Look at correlations for income, latitude and total rooms. 
+
+```{r}
+housing_prices_filt %>% 
+  ggplot(aes(x = median_income, y = median_house_value))+
+  geom_point()+
+  geom_smooth(method = "lm", se = FALSE)
+
+```
+
+```{r}
+housing_prices_filt %>% 
+  ggplot(aes(x = latitude, y = median_house_value))+
+  geom_point()+
+  geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+housing_prices_filt %>% 
+  ggplot(aes(x = total_rooms, y = median_house_value))+
+  geom_point()+
+  geom_smooth(method = "lm", se = FALSE)
+```
+5. I expect 5 dummy variables. 
+
+```{r}
+housing_prices %>% 
+distinct(ocean_proximity)
+```
+6. The model is significant, and we can see that median income explains 41 % of the variance in median house value. However, the residuals vs fitted values show a pattern rather than an even spread around 0, and the standardized values against the fitted values show some evidence of heteroskedasticity. 
+
+```{r}
+model_1 <- lm(median_house_value ~ median_income, data = housing_prices_filt)
+
+summary(model_1)
+
+autoplot(model_1)
+```
+
+7. If I add ocean proximity to the model, more variance in median house value can be accounted for, and an anova shows that the model including ocean proximity is more significant. 
+
+```{r}
+model_2 <- lm(median_house_value ~ median_income + ocean_proximity , data = housing_prices_filt)
+
+summary(model_2)
+
+autoplot(model_2)
+
+```
+```{r}
+anova(model_1, model_2)
+```
+## Extension 
+
+```{r}
+model_3 <- lm(median_house_value ~ log(median_income):ocean_proximity , data = housing_prices_filt)
+
+summary(model_3)
+
+autoplot(model_3)
+```
+```{r}
+
+plotModel(model_3)
+
+```
+In the interaction model, there is no longer heteroskedasticity. It also explains a larger part of the variance, and an anova shows that it is statistically different from model 2. The interaction model therefore seems to be the best fitting model. 
+
+```{r}
+anova(model_2, model_3)
+```
+
+
