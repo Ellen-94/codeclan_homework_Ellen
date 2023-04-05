@@ -1,0 +1,254 @@
+---
+title: "Manual model development"
+output: html_notebook
+---
+
+## MVP 
+
+Question 1 
+
+```{r}
+library(tidyverse)
+library(modelr)
+library(GGally)
+library(ggfortify)
+
+house_data <- read_csv("kc_house_data.csv")
+
+```
+```{r}
+# check for missing values 
+
+house_data %>% 
+   summarise(across(everything(), ~sum(is.na(.x))))
+
+# remove unnecessary columns, change yr_renovated to logical(renovated or not), remove aliased variables, change relevant numeric columns to factors.  
+
+house_data_clean <- 
+house_data %>% 
+  select(-date, -id, -sqft_living15, - sqft_lot15, - zipcode, - sqft_basement) %>% 
+  mutate(yr_renovated = if_else(yr_renovated > 0, TRUE, FALSE)) %>% 
+  mutate(view = as.factor(view)) %>% 
+  mutate(condition = as.factor(condition)) %>% 
+  mutate(grade = case_when(grade <= 3 ~ "unacceptable quality", grade >=  11 ~ "high quality", .default = "average quality" )) %>% 
+  mutate(grade = as.factor(grade)) %>% 
+  mutate(waterfront = as.factor(waterfront))
+
+
+
+```
+
+ Question 2 
+
+```{r}
+
+alias(lm(price ~ ., data = house_data_clean))
+
+```
+
+Question 3 
+
+
+```{r}
+ggpairs(house_data_clean)
+
+houses_tidy_numeric <- house_data_clean %>%
+  select_if(is.numeric)
+
+houses_tidy_nonnumeric <- house_data_clean %>%
+  select_if(function(x) !is.numeric(x))
+
+houses_tidy_nonnumeric$price <- house_data_clean$price
+
+ggpairs(houses_tidy_numeric)
+ggpairs(houses_tidy_nonnumeric)
+
+
+```
+
+The numeric variables that are most strongly correlated with price are bathrooms (0.5), sqft living (0.7), and sqft above (0.6).  
+
+Categorical variables that seem of interest are waterfront, view, condition and grade. 
+
+
+Start with the most strongly correlated numeric variable, sqft living. Autoplot doesn't look great. The model explains 0.4929 of the variance in house price. 
+
+```{r}
+mod_1 <- lm(price ~ sqft_living, data = house_data_clean)
+
+summary(mod_1)
+
+autoplot(mod_1)
+
+
+```
+add sqft above to the model. It is significant and explains more variance. 
+
+```{r}
+
+mod_2 <- lm(price ~ sqft_living + sqft_above, data = house_data_clean)
+
+summary(mod_2)
+
+autoplot(mod_2)
+
+```
+compare the two models 
+
+```{r}
+anova(mod_1, mod_2)
+```
+
+My model including sqft above is better since the anova is significant. 
+
+Add bathrooms to the model. 
+
+```{r}
+mod_3 <- lm(price ~ sqft_living + sqft_above + bathrooms, data = house_data_clean)
+
+summary(mod_3)
+
+anova(mod_2, mod_3)
+```
+Adding bathrooms to the model does not explain significantly more of the variance, according to the anvova. 
+
+Add categorical predictors to model 2. 
+
+
+```{r}
+# add waterfront 
+
+mod_4 <- lm(price ~ sqft_living + sqft_above + waterfront, data = house_data_clean)
+
+summary(mod_4)
+
+autoplot(mod_4)
+
+```
+
+Waterfront is significant and more variance is explained. 
+
+add view to the model 
+
+```{r}
+
+mod_5 <- lm(price ~ sqft_living + sqft_above + waterfront + view, data = house_data_clean)
+
+summary(mod_5)
+
+anova(mod_4, mod_5)
+
+```
+Adding view explains more of the variance and the anova is significant. 
+
+Try other models. Model 6 explains more of the variance than model 2, so I will keep model 6 instead. 
+
+```{r}
+mod_6 <- lm(price ~ sqft_living + waterfront, data = house_data_clean)
+
+summary(mod_6)
+
+summary(mod_2)
+
+```
+
+add view to the model 
+
+```{r}
+mod_7 <- lm(price ~ sqft_living + waterfront + view, data = house_data_clean)
+
+summary(mod_7)
+
+anova(mod_6, mod_7)
+```
+
+
+It is significant, but R square doesnt increase that much if I add view. 
+
+Try other categorical predictors after model 6. 
+
+condition was not significant. 
+
+```{r}
+
+mod_8 <- lm(price ~ sqft_living + waterfront + condition, data = house_data_clean)
+
+summary(mod_8)
+
+```
+
+```{r}
+mod_9 <- lm(price ~ sqft_living + waterfront + grade, data = house_data_clean)
+
+summary(mod_9)
+```
+R square increases a little if I add grade, possibly add. 
+
+check for all predictors 
+
+```{r}
+mod_all <- lm(price ~ ., data = house_data_clean)
+
+summary(mod_all)
+```
+
+
+All of them explains 68 % of the variance. Mod 6 explains 53 % of the variance. But mod 10, with view instead of waterfront explains more of the variance. 
+
+```{r}
+
+mod_10 <- lm(price ~ sqft_living + view, data = house_data_clean)
+
+summary(mod_10)
+```
+I'll try adding waterfront. 
+
+```{r}
+mod_11 <- lm(price ~ sqft_living + view + waterfront, data = house_data_clean)
+
+summary(mod_11)
+
+anova(mod_10, mod_11)
+```
+The anova is significant, but not mych more of hte variance is explained. So I'll stick to mod 10. 
+
+```{r}
+
+anova(mod_11, mod_10)
+
+final_model <- lm(price ~ sqft_living + view, data = house_data_clean)
+```
+
+## Extensions
+
+test possible interactions - not really any interactions here. 
+
+```{r}
+house_data_clean %>% 
+  ggplot(aes(x = sqft_living, y = price, colour = interaction(waterfront, view)))+
+  geom_point()+
+  geom_smooth(method = "lm", se = FALSE)
+
+house_data_clean %>% 
+  ggplot(aes(x = sqft_living, y = price, colour = view))+
+  geom_point()+
+  geom_smooth(method = "lm", se = FALSE)
+
+house_data_clean %>% 
+  ggplot(aes(x = sqft_living, y = price, colour = waterfront))+
+  geom_point()+
+  geom_smooth(method = "lm", se = FALSE)
+
+
+```
+```{r}
+library(relaimpo)
+calc.relimp(final_model, type = "lmg", rela = TRUE)
+```
+
+sqft_living accounts for 80 % of the variance and view for 20 %. 
+
+
+
+
+
