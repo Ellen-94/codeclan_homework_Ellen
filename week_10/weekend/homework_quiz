@@ -1,0 +1,20 @@
+Homework Quiz 
+
+1. It seems likely that all of those variables would have an impact, but some seem much more than others (eg. reading level compared to gender), so over-fitting is possible.   
+
+2. A smaller AIC indicates a better fit, so I should use the model with the smaller score. 
+
+3. The much lower r-squared value in the second model indicates over-fitting, so I would use the first model with the higher adjusted r-squared. 
+
+4. It is possible that the model is over-fitting, since I would have expected a lower RMSE on the training data. 
+
+5. I'd first pick a k, for example 5. I then split my data into five parts, and make five models. Each time 4 sets of data are trained on the model, and 1 is set aside. I then average the error across test sets. 
+
+6. A validation set is a set of data used neither in taining nor to comapere models, and can tehrefore give a final estimate of mdoel perofmrance. It is used after having selected the model in a more complex model building process. 
+
+7. Backwards selection starts with a model containing all possible predictors. It checks all predictors in the model, finds the one that lowers R@ the least when it's removed, and gradually removes these predictors from the model. 
+
+8. In subset selection, all possible cominations of predictors for the best model are searched for at each size of the model. 
+
+
+

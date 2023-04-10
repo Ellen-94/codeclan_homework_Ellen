@@ -1,0 +1,340 @@
+---
+title: "Weekend Homework - Model Building"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(modelr)
+library(GGally)
+library(ggfortify)
+library(skimr)
+```
+
+```{r}
+wine_red <- read_csv("data/wine_quality_red.csv")
+wine_white <- read_csv("data/wine_quality_white.csv")
+```
+```{r}
+names(wine_red)
+names(wine_white)
+
+View(wine_red)
+View(wine_white)
+
+wine_red %>% 
+  summarise(across(everything(), ~sum(is.na(.x))))
+
+wine_white %>% 
+    summarise(across(everything(), ~sum(is.na(.x))))
+
+wine_red <- wine_red %>% 
+  mutate(wine_type = "red")
+
+wine_white <- wine_white %>% 
+  mutate(wine_type = "white")
+
+all_wine <- rbind(wine_red, wine_white)
+
+View(all_wine)
+
+skim(all_wine)
+
+all_wine <- all_wine %>% 
+  select(-wine_id)
+
+# check if region might be worth keeping 
+
+all_wine %>% 
+  ggplot(aes(x = region, y = quality))+
+  geom_boxplot()
+
+all_wine %>% 
+  ggplot(aes(x = region, y = quality, fill = wine_type))+
+  geom_boxplot()
+
+all_wine %>% 
+  ggplot(aes(x = alcohol, y = quality, colour = region, group = region)) +
+  geom_smooth(method = "lm", se = FALSE)
+
+all_wine %>% 
+  ggplot(aes(x = residual_sugar, y = quality, colour = region, group = region)) +
+  geom_smooth(method = "lm", se = FALSE)
+
+all_wine %>% 
+  ggplot(aes(x = density, y = quality, colour = region, group = region)) +
+  geom_smooth(method = "lm", se = FALSE)
+
+all_wine %>% 
+  ggplot(aes(x = chlorides, y = quality, colour = region, group = region)) +
+  geom_smooth(method = "lm", se = FALSE)
+
+all_wine %>% 
+  ggplot(aes(x = fixed_acidity, y = quality, colour = region, group = region)) +
+  geom_smooth(method = "lm", se = FALSE)
+
+all_wine %>% 
+  ggplot(aes(x = p_h, y = quality, colour = region, group = region)) +
+  geom_smooth(method = "lm", se = FALSE)
+
+all_wine %>% 
+  ggplot(aes(x = sulphates, y = quality, colour = region, group = region)) +
+  geom_smooth(method = "lm", se = FALSE)
+
+# I probably won't want to include region in the analysis, since there doesn't seem to be any overall impact of region on quality. There are some potential interaction effects, but not many, and they won't be useful if I don't include region. 
+
+wine_clean <- all_wine %>% 
+  select(-region) %>% 
+  mutate(quality = as.numeric(quality))
+
+skim(wine_clean)
+
+wine_clean %>% 
+  ggplot(aes(x = quality))+
+  geom_histogram()
+
+wine_clean %>% 
+  ggplot(aes(x = alcohol))+
+  geom_histogram()
+
+# There are many positively skewed variables, so I could consider log transformations. 
+
+# check alias 
+
+alias(quality ~ ., data = wine_clean)
+
+```
+
+```{r}
+# split into training and test sets 
+
+index <- sample(1:nrow(wine_clean), 0.1 * nrow(wine_clean))
+wine_train <- wine_clean %>% slice(-index)
+wine_test <- wine_clean %>% slice(index)
+
+
+```
+
+
+
+```{r}
+ggpairs(wine_train)
+ggsave("ggpairs.png")
+
+# The variables that seem most strongly correlated with quality are 1) alcohol 2) density 3) volatile acidity and 4) chlorides . Might be worth checking if this is different for red/white wines -looks like there are some differences. 
+
+```
+
+
+```{r}
+# The diagnostic plots look good for the first model with alcohol as the predictor, and the model is significant and explains 18 % of the variance. 
+mod_1 <- lm(quality ~ alcohol, data = wine_train)
+
+summary(mod_1)
+
+autoplot(mod_1)
+
+# I compare model 1 with a model where density is the first predictor. It is significant but not much of the variance is explained, so I will keep alcohol as the first predictor. 
+
+mod_2 <- lm(quality ~ density, data = wine_train)
+
+summary(mod_2)
+
+# I add density to the model with alcohol, but it is not significant beyond alcohol, so I won't include it in the model. 
+
+mod_3 <- lm(quality ~ alcohol + density, data = wine_train)
+
+summary(mod_3)
+
+# I add volatile acidity to the model. It is significant and now 24 % of the variance in quality is explained, so I would like to keep it. I use an anova to see whether the model is better than the one with only alcohol in it, and it is. 
+
+mod_4 <- lm(quality ~ alcohol + volatile_acidity, data = wine_train)
+
+summary(mod_4)
+
+autoplot(mod_4)
+
+anova(mod_1, mod_4)
+
+# I add chlorides to the model. It is not significant, so I go back to my previous model. 
+
+mod_5 <- lm(quality ~ alcohol + volatile_acidity + chlorides, data = wine_train)
+
+summary(mod_5)
+
+# I add wine_type to my model. It is significant, and better than my model 4. 
+
+mod_6 <- lm(quality ~ alcohol + volatile_acidity + wine_type, data = wine_train)
+
+summary(mod_6)
+
+anova(mod_4, mod_6)
+
+autoplot(mod_6)
+
+```
+```{r}
+# check residuals for explanation of remaining variance 
+
+wine_remaining_resid <- wine_train %>% 
+  add_residuals(mod_6) %>% 
+  select(-c("alcohol", "volatile_acidity", "wine_type"))
+
+ggpairs(wine_remaining_resid)
+ggsave("resid_plot.png")
+
+
+# Now, the variables with highest correlation to the residuals are 1) residual sugar 2) free sulfur dioxide and 3) sulphates 
+  
+```
+
+```{r}
+# add residual sugar to the model. It is significant, more variance is explained, it it is significantly better than model 6. 
+
+mod_7 <- lm(quality ~ alcohol + volatile_acidity + wine_type + residual_sugar, data = wine_train)
+
+summary(mod_7)
+
+anova(mod_6, mod_7)
+
+# add free sulfur dioxide. Good to add since anova is significant. 
+
+mod_8 <- lm(quality ~ alcohol + volatile_acidity + wine_type + residual_sugar + free_sulfur_dioxide, data = wine_train)
+
+summary(mod_8)
+
+anova(mod_7, mod_8)
+
+# add sulphates to the model. significant addition. 
+
+mod_9 <- lm(quality ~ alcohol + volatile_acidity + wine_type + residual_sugar + free_sulfur_dioxide + sulphates , data = wine_train)
+
+summary(mod_9)
+
+anova(mod_8, mod_9)
+
+
+```
+```{r}
+
+# investigate potential interactions 
+
+model_residuals <- wine_train %>% 
+  add_residuals(mod_9) %>% 
+  select(-quality)
+
+
+# potential interactions 
+
+coplot(resid ~ residual_sugar|alcohol, rows = 1,
+       panel = function(x, y, ...){
+         points(x, y)
+         abline(lm(y ~ x), col = "blue")
+       } , data = model_residuals)
+
+coplot(resid ~ free_sulfur_dioxide|alcohol, rows = 1,
+       panel = function(x, y, ...){
+         points(x, y)
+         abline(lm(y ~ x), col = "blue")
+       } , data = model_residuals)
+
+coplot(resid ~ sulphates|alcohol, rows = 1,
+       panel = function(x, y, ...){
+         points(x, y)
+         abline(lm(y ~ x), col = "blue")
+       } , data = model_residuals)
+
+
+coplot(resid ~ volatile_acidity|residual_sugar, rows = 1,
+       panel = function(x, y, ...){
+         points(x, y)
+         abline(lm(y ~ x), col = "blue")
+       } , data = model_residuals)
+
+coplot(resid ~ volatile_acidity|free_sulfur_dioxide, rows = 1,
+       panel = function(x, y, ...){
+         points(x, y)
+         abline(lm(y ~ x), col = "blue")
+       } , data = model_residuals)
+
+coplot(resid ~ sulphates|free_sulfur_dioxide, rows = 1,
+       panel = function(x, y, ...){
+         points(x, y)
+         abline(lm(y ~ x), col = "blue")
+       } , data = model_residuals)
+
+
+
+# possible interactions between volatile acidity and wine type and wine type and free sulfur dioxide 
+
+model_residuals %>% 
+  ggplot(aes(x = volatile_acidity, y = resid, colour = wine_type)) + 
+  geom_point()+
+  geom_smooth(method = "lm", se = FALSE)
+
+model_residuals %>% 
+  ggplot(aes(x = free_sulfur_dioxide, y = resid, colour = wine_type)) + 
+  geom_point()+
+  geom_smooth(method = "lm", se = FALSE)
+
+
+
+```
+```{r}
+# add possible interactins to model. 
+
+# add volatile_acidity: winte type interaction to model. 
+
+mod_10 <- lm(quality ~ alcohol + volatile_acidity + wine_type + residual_sugar + free_sulfur_dioxide + sulphates + wine_type:volatile_acidity, data = wine_train)
+
+summary(mod_10)
+
+anova(mod_9, mod_10)
+
+# add next interaction. It is significant but adds very little to R2, so I won't keep it. final model will be model 10. Diagnostics on 10 look ok. 
+
+mod_11 <- lm(quality ~ alcohol + volatile_acidity + wine_type + residual_sugar + free_sulfur_dioxide + sulphates + wine_type:volatile_acidity + wine_type:free_sulfur_dioxide, data = wine_train)
+
+summary(mod_11)
+
+anova(mod_10, mod_11)
+
+autoplot(mod_10)
+
+```
+
+```{r}
+# Test how much of R2 is explained with all predictors - 27 % . 
+
+mod_all <- lm(quality ~ ., data = wine_train)
+
+summary(mod_all)
+
+  
+```
+
+```{r}
+# compare RMSE on test and train data. The error is lower on the training data, which is expected. 
+
+predictions_test <- wine_test %>% 
+  add_predictions(mod_10) %>% 
+  select(quality, pred)
+
+mse_test <- mean((predictions_test$pred - wine_test$quality)**2)
+
+mse_test
+
+predictions_train <- wine_train %>% 
+  add_predictions(mod_10) %>% 
+  select(quality, pred)
+
+mse_train <- mean((predictions_train$pred - wine_train$quality)**2)
+
+mse_train
+
+
+
+```
+
+
+
