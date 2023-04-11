@@ -1,0 +1,116 @@
+---
+title: "Decision Tree Homework"
+output: html_notebook
+---
+# MVP 
+
+```{r}
+library(rpart)
+library(rpart.plot)
+library(tidyverse)
+library(GGally)
+
+library(tidyverse)
+titanic_set <- read_csv('data/titanic_decision_tree_data.csv')
+
+shuffle_index <- sample(1:nrow(titanic_set))
+
+# shuffle the data so class order isn't in order - need this for training/testing split later on 
+titanic_set <- titanic_set[shuffle_index, ]
+
+```
+# Question 1
+
+```{r}
+View(titanic_set)
+
+titanic_set_clean  <- 
+  titanic_set %>% 
+  drop_na %>% 
+  mutate(sex = as.factor(sex), survived = as.factor(survived), pclass = as.factor(pclass),embarked = as.factor(embarked)) %>% 
+  mutate(age_status = if_else(age <= 16,"child", "adult")) %>% 
+  mutate(age_status = as.factor(age_status)) %>% 
+  select(-...1, -passenger_id, -name, -ticket, -fare, -cabin)
+  
+
+
+```
+
+
+# Question 2 
+
+```{r}
+# it looks like sex and class are most important 
+
+ggpairs(titanic_set_clean)
+```
+# Question 3 
+
+
+```{r}
+
+# I did 30/70 test/train since I have a small dataset. 
+
+n_data <- nrow(titanic_set_clean)
+
+test_index <- sample(1:n_data, size = n_data*0.3)
+
+titanics_test  <- slice(titanic_set_clean, test_index)
+
+titanics_train <- slice(titanic_set_clean, -test_index)
+
+titanics_test %>%
+ janitor::tabyl(survived)
+
+titanics_train %>%
+ janitor::tabyl(survived)
+
+```
+
+# Question 4
+
+```{r}
+
+titanics_fit <- rpart(
+  formula = survived ~ ., 
+  data = titanics_train, 
+  method = 'class'
+)
+
+rpart.plot(titanics_fit, 
+           yesno = 2, 
+           fallen.leaves = TRUE, 
+           faclen = 6, 
+           digits = 4)
+
+```
+
+# Question 5
+
+The variables in the plot (sex, age and sib_sp) are the ones that are most informative for predicting survival. A the top we can see that the probability of survival is 65 %. And then, if they are not male, we can see that the chance of survival was 93 %. If they were male, however, their chace of survival was 43%. If they were male and older than 36, the survival chance was 29 %, and if they were male and younger than 36 it's 61%. If a man then was younger than 31.5, his survival chance was 51%, and if he was between 31 and 36 his survival chance was 77 %. If he was younger than 31.5 and had a partner or sibling, his survival chance was 41%, but it was 70 % if he had no partner or siblings. 
+
+# Question 6 
+
+```{r}
+
+library(modelr)
+
+titanics_test_pred <- titanics_test %>%
+  add_predictions(titanics_fit, type = 'class')
+
+library(yardstick)
+
+conf_mat <- titanics_test_pred %>%
+              conf_mat(truth = survived, estimate = pred)
+
+conf_mat
+
+accuracy <- titanics_test_pred %>%
+ accuracy(truth = survived, estimate = pred)
+
+accuracy
+
+```
+The confusion matrix shows that 9 passengers who were predicted to die and who died, 33 passengers who survived and were predicted to survive, 6 passengers who died but were predicted to have survived, and six passengers who were predicted to die but survived.The model was accurate in 77% of cases. 
+
+
