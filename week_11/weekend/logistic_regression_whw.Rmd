@@ -1,0 +1,217 @@
+---
+title: "Logistic Regression Homework"
+output: html_notebook
+---
+
+
+```{r}
+library(tidyverse)
+library(modelr)
+library(skimr)
+library(janitor)
+library(GGally)
+library(modelr)
+library(pROC)
+
+orange_juice <- read_csv("data/orange_juice.csv") %>% clean_names()
+
+View(orange_juice)
+
+glimpse(orange_juice)
+
+skim(orange_juice)
+
+orange_juice %>% 
+distinct(purchase)
+
+orange_juice %>% 
+distinct(store)
+
+# There is a similar pattern for week of purchase for both juices, so I will leave it out. 
+orange_juice %>% 
+  ggplot(aes(x = weekof_purchase, fill = purchase)) + 
+  geom_histogram()
+
+alias(orange_juice)
+
+
+```
+
+```{r}
+oj_clean <- orange_juice %>% 
+  select(-weekof_purchase,-store_id, -sale_price_mm, -sale_price_ch, - price_diff, -list_price_diff, -store, -disc_ch, -disc_mm) %>%
+  mutate(purchase = as.factor(purchase), store7 = as.factor(store7)) %>% 
+  mutate(purchase_ch = if_else(purchase == "CH", TRUE, FALSE), purchase_mm = if_else(purchase == "MM", TRUE, FALSE))
+
+```
+
+
+```{r}
+alias(purchase ~ ., data = oj_clean)
+```
+```{r}
+# create test/train data
+
+n_data <- nrow(oj_clean)
+
+test_index <- sample(1:n_data, size = n_data*0.2)
+
+oj_train <- slice(oj_clean, -test_index)
+oj_test <- slice(oj_clean, test_index)
+
+View(oj_train)
+
+
+```
+
+```{r}
+# variables that look important are price_mm, price_ch loyal_ch, store7, pctdisc_mm, pctdisc_ch. Discounts look most important. 
+
+ggpairs(oj_train)
+ggsave("pairs_plot.png")
+```
+
+```{r}
+
+# look at purchase_ch. create different models and compare. 
+
+options(scipen = 999)
+mod_1_ch <- glm(purchase_ch ~  pct_disc_ch,
+             family = "binomial",
+             data = oj_train)
+
+summary(mod_1_ch)
+
+mod_2_ch <- glm(purchase_ch ~ loyal_ch,
+             family = "binomial",
+             data = oj_train)
+
+summary(mod_2_ch)
+
+mod_3_ch <- glm(purchase_ch ~  loyal_ch + pct_disc_ch,
+             family = "binomial",
+             data = oj_train)
+
+summary(mod_3_ch)
+
+# price is not significant 
+
+mod_4_ch <- glm(purchase_ch ~  loyal_ch + pct_disc_ch + price_ch,
+             family = "binomial",
+             data = oj_train)
+
+summary(mod_4_ch)
+
+# but store7 is significant 
+
+mod_5_ch <- glm(purchase_ch ~  loyal_ch + pct_disc_ch + store7,
+             family = "binomial"(link = 'logit'),
+             data = oj_train)
+
+summary(mod_5_ch) 
+
+```
+
+
+```{r}
+# coefficients for mod 5 
+
+summary(mod_5_ch)
+
+odds <- exp(coef(mod_5_ch))
+
+```
+
+
+```{r}
+# models for purchase_mm 
+
+options(scipen = 999)
+mod_1_mm <- glm(purchase_mm ~  pct_disc_mm,
+             family = "binomial",
+             data = oj_train)
+
+summary(mod_1_mm)
+
+mod_2_mm <- glm(purchase_mm ~  price_mm,
+             family = "binomial",
+             data = oj_train)
+
+summary(mod_2_mm)
+
+mod_3_mm <- glm(purchase_mm ~  store7,
+             family = "binomial",
+             data = oj_train)
+
+summary(mod_3_mm)
+
+mod_4_mm <- glm(purchase_mm ~ pct_disc_mm + store7 + price_mm,
+             family = "binomial",
+             data = oj_train)
+
+summary(mod_4_mm)
+
+
+```
+```{r}
+# coefficients for mod 4
+
+summary(mod_4_mm)
+
+odds <- exp(coef(mod_4_mm))
+
+odds
+```
+
+
+
+```{r}
+# add predictions to test and plot roc for best ch model. The model looks good - 90% of area covered under the curve. 
+
+pred_ch_mod <- oj_test %>%
+  add_predictions(mod_5_ch, type = "response")
+
+roc_obj_ch_mod <- pred_ch_mod %>%
+  roc(response = purchase_ch, predictor = pred)
+
+roc_curve_ch <- ggroc(
+  data = roc_obj_ch_mod, 
+  legacy.axes = TRUE) +
+  coord_fixed()
+
+roc_curve_ch
+
+auc(roc_obj_ch_mod)
+
+```
+
+```{r}
+# mm model doesn't look great, but ok, 71% of area under the curve. 
+
+pred_mm_mod <- oj_test %>%
+  add_predictions(mod_4_mm, type = "response")
+
+roc_obj_mm_mod <- pred_mm_mod %>%
+  roc(response = purchase_mm, predictor = pred)
+
+roc_curve_mm <- ggroc(
+  data = roc_obj_mm_mod, 
+  legacy.axes = TRUE) +
+  coord_fixed()
+
+roc_curve_mm
+
+auc(roc_obj_mm_mod)
+
+
+
+
+
+```
+
+
+
+
+
+
+

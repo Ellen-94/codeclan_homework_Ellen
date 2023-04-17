@@ -1,0 +1,69 @@
+---
+title: "Text Mining Homework"
+output: html_notebook
+---
+
+# MVP 
+
+```{r}
+library(tidytext)
+library(janeaustenr)
+library(tidyverse)
+library(textdata)
+
+```
+
+```{r}
+ja_books <- list(prideprejudice, sensesensibility)
+both_ja_books <- purrr::map_chr(ja_books, paste, collapse = " ")
+both_ja_books <- paste(both_ja_books, collapse = " ")
+
+```
+
+```{r}
+sensibility_pride <- tibble(
+  id = 1:length(both_ja_books),
+  text = both_ja_books
+) %>% 
+  unnest_tokens(word,text)
+
+```
+
+
+```{r}
+sensibility_pride %>% 
+  count(word, sort = TRUE)
+
+
+sensibility_pride %>% 
+  anti_join(stop_words) %>% 
+  count(word, sort = TRUE)
+
+
+```
+```{r}
+# most common sentiment words 
+
+austen_sentiments <- sensibility_pride %>%
+  inner_join(get_sentiments("bing"))
+
+austen_sentiments %>%
+  filter(sentiment == "positive") %>%
+  count(word, sort = TRUE)
+
+austen_sentiments %>%
+  filter(sentiment == "negative") %>%
+  count(word, sort = TRUE)
+
+
+```
+
+
+# Extension 
+
+
+
+
+
+
+
